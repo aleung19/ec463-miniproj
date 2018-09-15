@@ -42,7 +42,10 @@ while ~isDone(v)
                 carcandidates(k).framespresent = carcandidates(k).framespresent + 1;
                 % new tracks that are candidates for cars are established
                 % if bounding boxes over consecutive frames overlap each
-                % other over a certain percentage
+                % other over a certain percentage. need to fix so that only
+                % active tracks are having their bboxes compared so dead
+                % tracks with bboxes that may overlap with new detections
+                % don't screw things up
             else
                 if carcandidates(k).framespresent > 0
                     carcandidates(k).framesgone = carcandidates(k).framesgone + 1;
