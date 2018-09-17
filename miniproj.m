@@ -1,4 +1,3 @@
-% function numcars = cardetext(v)
 v = vision.VideoFileReader('carfootage-short.mp4'); % read footage
 detector = vision.ForegroundDetector('NumGaussians', 5, ...
     'NumTrainingFrames', 70); % creates foreground mask
@@ -9,7 +8,9 @@ carcandidates = struct('bboxes',{},'framespresent',{},'framesgone',{});
 % each entry in this structure holds detections that are candidates to be
 % legitimate car tracking
 se = strel('square', 3);
+numcars = 0;
 videoPlayer = vision.VideoPlayer();
+newtracks = [];
 while ~isDone(v)
     frame = v();
     foreground = detector(frame);
@@ -25,52 +26,41 @@ while ~isDone(v)
         end
     end % On the first frame of detections, we'll consider all of them
     % candidates -- need to adjust in case first frame has no detections
-    activetracks = carcandidates; % Initialize all car candidates as active
-    % tracks (tracks that are onscreen)
-    nactivetracks = numel(activetracks);
-    nnewdetects = size(newdetects,1); 
-    for j = 1:nnewddetects
-        for k = 1:ncarcandidates
-            activetracks = carcandidates;
-            if activetracks(k).framesgone > 15
-                activetracks(k).framesgone = []; % if a track is gone for
-                % over a certain amount of frames, it's removed from the
-                % list of active tracks
-            end
-            if bboxOverlapRatio(newdetects(j,:),carcandidates(k).bboxes(size(carcandidates(k).bboxes,1),:)) > 0.5
+    % tracks (tracks that are onscreen) 
+    for k = 1:numel(carcandidates) %check this part out
+        for j = 1:size(newdetects,1)
+            overlapRatio = bboxOverlapRatio(newdetects(j,:),carcandidates(k).bboxes(end,:));
+            if (overlapRatio > 0.5) && carcandidates(k).framesgone < 20
                 carcandidates(k).bboxes = [carcandidates(k).bboxes; newdetects(j,:)];
                 carcandidates(k).framespresent = carcandidates(k).framespresent + 1;
-                % new tracks that are candidates for cars are established
-                % if bounding boxes over consecutive frames overlap each
-                % other over a certain percentage. need to fix so that only
-                % active tracks are having their bboxes compared so dead
-                % tracks with bboxes that may overlap with new detections
-                % don't screw things up
+                % new tracks are established if bounding boxes over 
+                % consecutive frames overlap each other over a certain 
+                % percentage.
             else
                 if carcandidates(k).framespresent > 0
                     carcandidates(k).framesgone = carcandidates(k).framesgone + 1;
-                end
-                carcandidates(end + 1).bboxes = newdetects(j,:); % problematic looping prob here ...
-                % looping through k and adding newdetects(j,:) to
-                % carcandidates over and over again?
-                carcandidates(end).framespresent = 1;
-                carcandidates(end).framesgone = 0;
+                end % If no new detections match up to an existing track,
+                % a counter goes up for the number of consecutive frames it
+                % also doesn't appear
             end
         end
     end
+    for q = 1:size(newdetects,1)
+        carcandidates(end + 1).bboxes = newdetects(q,:);
+        carcandidates(end).framespresent = 1;
+        carcandidates(end).framesgone = 0;
+    end % If new detections don't match up to existing tracks, they start
+    % new tracks
     shapeInserter = vision.ShapeInserter('BorderColor', 'White');
     out = shapeInserter(frame, BBOX); % adds bounding boxes to video
     videoPlayer(out);
 end
     for n = 1:numel(carcandidates)
-        if size(carcandidates(n).bboxes,1) < 10
-            carcanddiates(n) = [];
+        if carcandidates(n).framespresent > 42
+            numcars = numcars + 1;
         end
-    end % eliminating car candidates whose tracks did not last over a
-    % certain # of frames
-    numcars = numel(carcandidates); % hopefully, # of car candidates is
-    % actual # of cars
-% Will need to adjust inputs from Raspberry Pi Camera
+    end % We'll only consider a track a legitimate car candidate if it
+% appears over a certain number of frames
+% Will need to adjust for video inputs from Raspberry Pi Camera
+% Runs slow after a little while, need to optimize looping
 % Need to perfect a cleaning method, false detections high, cleaning noise
-% dependent on size which is not versatile
-% Seriously need to debug tracking
