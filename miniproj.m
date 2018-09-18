@@ -5,7 +5,7 @@ blob = vision.BlobAnalysis('AreaOutputPort', false, ...
      'BoundingBoxOutputPort', true, 'CentroidOutputPort', false, ...
      'MinimumBlobArea', 3500); % analyzes connected regions in the mask 
 carcandidates = struct('bboxes',{},'framesgone',{});
-activetracks = carcandidates
+activetracks = carcandidates;
 % each entry in this structure holds detections that are candidates to be
 % legitimate car tracking
 se = strel('square', 3);
@@ -26,8 +26,7 @@ while ~isDone(v)
         end
     end
     % On the first frame of detections, we'll consider all of them
-    % candidates -- need to adjust in case first frame has no detections
-    % tracks (tracks that are onscreen) 
+    % candidates for active tracking
     k = 1;
     while k <= numel(activetracks)
         for j = 1:size(newdetects,1)
@@ -48,7 +47,10 @@ while ~isDone(v)
                 carcandidates(end + 1).bboxes = activetracks(k).bboxes;
                 carcandidates(end).framesgone = activetracks(k).framesgone;
                 activetracks(k) = [];
-            end
+            end % If a track has no new detections assigned to it over a
+            % certain number of frames, the track is considered no longer
+            % on screen and is removed to optimize the loop comparing new
+            % detections with existing tracks
         end
         k = k + 1;
     end
@@ -64,7 +66,7 @@ end
 for p = 1:numel(activetracks)
     carcandidates(end + 1).bboxes = activetracks(p).bboxes;
     carcandidates(end).framesgone = activetracks(p).framesgone;
-end
+end % Adding the remaining active tracks to the list of car candidates
     for n = 1:numel(carcandidates)
         if size(carcandidates(n).bboxes,1) > 42
             numcars = numcars + 1;
