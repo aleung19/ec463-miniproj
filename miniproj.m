@@ -15,6 +15,7 @@ videoPlayer = vision.VideoPlayer();
 newtracks = [];
 framecounter = 0;
 while ~isDone(v)
+    framecounter = framecounter + 1;
     frame = v();
     foreground = detector(frame);
     foreground1 = bwareaopen(foreground, 500); % noise filter based on size
@@ -25,6 +26,7 @@ while ~isDone(v)
         for m = 1:size(BBOX,1)
             activetracks(m).bboxes = BBOX(m,:);
             activetracks(m).framesgone = 0;
+            activetracks(m).timestamp = framecounter / 23.98; % test video frame rate
         end
     end
     % On the first frame of detections, we'll consider all of them
@@ -48,9 +50,9 @@ while ~isDone(v)
             if activetracks(k).framesgone > 20
                 carcandidates(end + 1).bboxes = activetracks(k).bboxes;
                 carcandidates(end).framesgone = activetracks(k).framesgone;
+                carcandidates(end).timestamp = activetracks(k).timestamp;
                 if size(carcandidates(end).bboxes,1) > 42
                     numcars = numcars + 1;
-                    carcandidates(end).timestamp = framecounter / 23.98; % test video frame rate
                 end
                 activetracks(k) = [];
             end % If a track has no new detections assigned to it over a
@@ -63,41 +65,40 @@ while ~isDone(v)
     for q = 1:size(newdetects,1)
         activetracks(end + 1).bboxes = newdetects(q,:);
         activetracks(end).framesgone = 0;
+        activetracks(end).timestamp = framecounter / 23.98; % test video frame rate
     end % If new detections don't match up to existing tracks, they start
     % new tracks
     shapeInserter = vision.ShapeInserter('BorderColor', 'White');
     out = shapeInserter(frame, BBOX); % adds bounding boxes to video
     videoPlayer(out);
-    framecounter = framecounter + 1;
 end
 for p = 1:numel(activetracks)
     if size(activetracks(p).bboxes,1) > 42
             numcars = numcars + 1;
             carcandidates(end + 1).bboxes = activetracks(p).bboxes;
             carcandidates(end).framesgone = activetracks(p).framesgone;
-            carcandidates(end).timestamp = framecounter / 23.98; % test video framerate
+            carcandidates(end).timestamp = activetracks(p).timestamp;
     end
 end
 idcounter = 1;
 i = 1;
 while i <= numel(carcandidates)
-    if isempty(carcandidates(i).timestamp) == 1
-        carcandidates(i) = [];
-    else
+    if size(carcandidates(i).bboxes,1) > 42
         carcandidates(i).id = idcounter;
         idcounter = idcounter + 1;
     end
     i = i + 1;
 end
 for r = 1:numel(carcandidates)
-if isempty(carcandidates(r).id) == 0
+if size(carcandidates(r).bboxes,1) > 42
     carsfinal{r,1} = carcandidates(r).id;
     carsfinal{r,2} = carcandidates(r).timestamp;
 end
 end
 matcarsfinal = cell2mat(carsfinal);
 csvwrite('carsandtimestamps.txt',matcarsfinal);
+type('carsandtimestamps.txt')
 % We'll only consider a track a legitimate car candidate if it
 % appears over a certain number of frames
 % Will need to adjust for video inputs from Raspberry Pi Camera
-% Need to perfect a cleaning method, false detections high, cleaning noise
+% Need to perfect a cleaning method, false detections, false negatives high, cleaning noise
