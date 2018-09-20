@@ -4,7 +4,8 @@ detector = vision.ForegroundDetector('NumGaussians', 5, ...
 blob = vision.BlobAnalysis('AreaOutputPort', false, ...
      'BoundingBoxOutputPort', true, 'CentroidOutputPort', false, ...
      'MinimumBlobArea', 3500); % analyzes connected regions in the mask 
-carcandidates = struct('id',{},'bboxes',{},'framesgone',{},'timestamp',{});
+carcandidates = struct('id',{},'bboxes',{},'framesgone',{},'timestamp', ... 
+    {}, 'cargone',{});
 activetracks = carcandidates;
 carsfinal = {};
 % each entry in this structure holds detections that are candidates to be
@@ -48,9 +49,11 @@ while ~isDone(v)
                 % also doesn't appear
             end
             if activetracks(k).framesgone > 20
+                activetracks(k).cargone = framecounter / 23.98; % test video frame rate
                 carcandidates(end + 1).bboxes = activetracks(k).bboxes;
                 carcandidates(end).framesgone = activetracks(k).framesgone;
                 carcandidates(end).timestamp = activetracks(k).timestamp;
+                carcandidates(end).cargone = framecounter / 23.98; % test video frame rate
                 if size(carcandidates(end).bboxes,1) > 42
                     numcars = numcars + 1;
                 end
@@ -93,6 +96,7 @@ for r = 1:numel(carcandidates)
 if size(carcandidates(r).bboxes,1) > 42
     carsfinal{r,1} = carcandidates(r).id;
     carsfinal{r,2} = carcandidates(r).timestamp;
+    carsfinal{r,3} = carcandidates(r).cargone;
 end
 end
 matcarsfinal = cell2mat(carsfinal);
