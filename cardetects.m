@@ -1,3 +1,4 @@
+function detectedcars = cardetects(videofile, framerate)
 v = vision.VideoFileReader(videofile); % read footage
 detector = vision.ForegroundDetector('NumGaussians', 5, ...
     'NumTrainingFrames', 70); % creates foreground mask
